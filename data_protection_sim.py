@@ -90,18 +90,20 @@ if 'page_index' not in st.session_state:
     st.session_state.page_index = 0
 
 # --- Constants ---
-TOTAL_MISSIONS = 8
+TOTAL_MISSIONS = 10
 MAX_SCORE_PER_MISSION = 100
 PAGES = [
     "🏠 Dashboard",
-    "📧 Mission 1: Phishing Defense",
+    "📧 Mission 1: Supply Chain Phishing",
     "⚖️ Mission 2: Data Rights (NDPR)",
-    "🔑 Mission 3: Password Hygiene",
+    "🔐 Mission 3: Access Control",
     "🏢 Mission 4: Physical Security",
-    "🚨 Mission 5: Incident Response",
-    "💀 Mission 6: Ransomware (Hard)",
-    "🎭 Mission 7: CEO Fraud (Hard)",
-    "🤝 Mission 8: Vendor Risk (Hard)",
+    "🚨 Mission 5: Data Leakage",
+    "💀 Mission 6: Ransomware Attack",
+    "🎭 Mission 7: CEO Fraud (BEC)",
+    "☁️ Mission 8: Shadow IT",
+    "💻 Mission 9: Secure Development",
+    "🕵️ Mission 10: Insider Threat",
     "🏆 Certification"
 ]
 
@@ -114,7 +116,9 @@ MISSION_MAP = {
     5: "m5",
     6: "m6",
     7: "m7",
-    8: "m8"
+    8: "m8",
+    9: "m9",
+    10: "m10"
 }
 
 # --- Helper Functions ---
@@ -122,9 +126,15 @@ def mark_complete(mission_id, points):
     if mission_id not in st.session_state.completed_missions:
         st.session_state.score += points
         st.session_state.completed_missions.add(mission_id)
-        st.balloons()
-        st.success("✅ Correct! Moving to next mission...")
-        time.sleep(1.5)
+        
+        if points > 0:
+            st.balloons()
+            st.success("✅ Correct! Moving to next mission...")
+        else:
+            st.error("❌ Incorrect. Moving to next mission...")
+            
+        time.sleep(2.5) # Pause to read feedback
+        
         # Auto-advance
         if st.session_state.page_index < len(PAGES) - 1:
             st.session_state.page_index += 1
@@ -132,10 +142,17 @@ def mark_complete(mission_id, points):
 
 def show_feedback(is_correct, explanation, mission_id, points=MAX_SCORE_PER_MISSION):
     if is_correct:
-        # Auto-claim logic
         mark_complete(mission_id, points)
     else:
+        # Show error message first, then auto-fail
         st.error(f"❌ Incorrect. {explanation}")
+        # We need a way to trigger the move after showing the error.
+        # Since st.error renders immediately, we can sleep then call mark_complete with 0.
+        # However, mark_complete also shows a message. Let's adjust mark_complete to handle the "already shown" message or just rely on it.
+        # To keep it simple:
+        with st.spinner("Processing result..."):
+            time.sleep(3)
+        mark_complete(mission_id, 0)
 
 def save_result(username, score):
     file_exists = os.path.isfile('training_log.csv')
@@ -234,13 +251,15 @@ with st.sidebar:
 def dashboard():
     st.title("🛡️ Fiducia Data Protection Training Hub")
     st.markdown(f"""
-    Welcome to the **Fiducia Data Protection Simulator**. Your goal is to navigate through real-world scenarios 
-    and make the right decisions to protect our company's data.
+    Welcome to the **Fiducia Data Protection Simulator**. 
+    
+    As a key player in **IT Supply Chain Financing**, we handle sensitive data: invoices, vendor KYC, and transaction ledgers. 
+    Your vigilance is our first line of defense.
     
     ### 🎯 Your Objectives
     1. Complete all **{TOTAL_MISSIONS} Missions**.
-    2. Achieve a high score to earn your **Certificate**.
-    3. Learn how to spot threats and handle data responsibly.
+    2. **Warning:** Incorrect answers will result in **0 points** and you cannot retry.
+    3. Achieve a high score to earn your **Certificate**.
     
     Enter your name below to begin:
     """)
@@ -253,230 +272,236 @@ def dashboard():
     st.info("👈 Select a mission from the sidebar or click Next to start.")
 
 def mission_phishing():
-    st.header("📧 Mission 1: Phishing Defense")
-    st.markdown("You are checking your emails on a busy Monday morning. One email catches your eye.")
+    st.header("📧 Mission 1: Supply Chain Phishing")
+    st.markdown("You receive an email from a known logistics partner regarding a 'Blocked Invoice Payment'.")
     
     with st.container():
         st.markdown("""
-        **From:** IT Support <admin@fiducla.com>  
-        **Subject:** URGENT: Verify your account now
+        **From:** Accounts Payable <billing@logistics-partner-support.com>  
+        **Subject:** URGENT: Invoice #99281 Blocked - Action Required
         
-        Dear User,
+        Hi Team,
         
-        We noticed unusual activity on your account. Please click the link below to verify your password immediately or your account will be locked.
+        Your payment for Invoice #99281 has been blocked due to a KYC update error. 
+        Please download the attached 'Secure Payment Gateway' tool to update your banking credentials immediately, or the shipment will be delayed.
         
-        [Verify Now](http://fiducla-secure-login.com)
+        [Download Secure Tool](http://logistics-partner-support.com/secure-tool.exe)
         
         Regards,  
-        IT Team
+        Billing Dept
         """)
     
-    st.subheader("What is your immediate action?")
+    st.subheader("Analyze the email. What is the primary red flag?")
     
-    choice = st.radio("Choose wisely:", 
-                      ["Click the link to verify quickly.", 
-                       "Reply to ask if it's real.", 
-                       "Report to Security Team / Delete.",
-                       "Forward to your personal email to check later."])
+    choice = st.radio("Select the most critical indicator:", 
+                      ["The tone is urgent.", 
+                       "The sender domain 'logistics-partner-support.com' is likely a spoof (lookalike domain).", 
+                       "The invoice number is unfamiliar.",
+                       "It asks for banking credentials."])
     
     if "m1" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
-        if st.button("Submit Decision"):
-            if choice == "Report to Security Team / Delete.":
-                show_feedback(True, "You noticed the spoofed domain 'fiducla.com' and the urgency tactics. Excellent work.", "m1")
-            elif choice == "Click the link to verify quickly.":
-                show_feedback(False, "You fell for the trap! The domain was 'fiducla.com' (typo) and the link was suspicious.", "m1")
+        if st.button("Submit Analysis"):
+            if choice == "The sender domain 'logistics-partner-support.com' is likely a spoof (lookalike domain).":
+                show_feedback(True, "Correct. Supply chain attacks often use 'typosquatting' or plausible-looking domains to trick you into installing malware.", "m1")
             else:
-                show_feedback(False, "Not the best course of action. Always report suspicious emails directly via the 'Report Phish' button.", "m1")
+                show_feedback(False, "Incorrect. While other factors are suspicious, the **domain spoofing** is the technical smoking gun here. The official domain would be 'logistics-partner.com'.", "m1")
 
 def mission_data_rights():
     st.header("⚖️ Mission 2: Data Rights (NDPR)")
-    st.markdown("A customer, **John Doe**, submits a **Subject Access Request (SAR)** asking for his data to be deleted.")
+    st.markdown("A former director of a vendor company, **Jane Doe**, submits a request to delete her personal data.")
+    st.info("Context: Jane was the signatory for a financing deal 3 years ago. We hold her passport copy and signature for AML/KYC purposes.")
     
-    st.info("Request: 'I want you to delete everything you have on me!'")
+    st.subheader("How do you respond to her Deletion Request?")
     
-    st.subheader("Select which data records you will delete:")
-    
-    options = ["Marketing Email Subscription", "Customer Support Chat Logs", "Transaction History (Tax Invoices)", "Shipping Address"]
-    # FIX: Ensure multiselect renders correctly by giving it a unique key if needed, though standard usage is usually fine.
-    # The issue might have been state related.
-    selections = st.multiselect("Select items to delete:", options, key="m2_multiselect")
+    choice = st.radio("Decision:", 
+                      ["Delete everything immediately to comply with NDPR.", 
+                       "Delete her email address but keep the passport/signature.", 
+                       "Refuse to delete the passport/signature due to AML/KYC legal obligations.",
+                       "Ask her to pay a processing fee first."])
     
     if "m2" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
-        if st.button("Process Deletion"):
-            if not selections:
-                st.warning("You must select something.")
-            elif "Transaction History (Tax Invoices)" in selections:
-                show_feedback(False, "⚠️ Compliance Violation! We are legally required to keep Tax Invoices for 6+ years. You cannot delete them just because a customer asks.", "m2")
-            elif "Marketing Email Subscription" in selections and "Shipping Address" in selections and "Customer Support Chat Logs" in selections:
-                 show_feedback(True, "Perfect balance. You deleted the personal data we don't need, but kept the legal records (which we would explain to the customer).", "m2")
+        if st.button("Submit Decision"):
+            if choice == "Refuse to delete the passport/signature due to AML/KYC legal obligations.":
+                show_feedback(True, "Correct. Legal obligations (like Anti-Money Laundering laws) override the Right to Erasure under NDPR for specific transaction records.", "m2")
+            elif choice == "Delete her email address but keep the passport/signature.":
+                show_feedback(False, "Partially correct, but you must explicitly inform her *why* you are retaining the AML data. The best answer focuses on the refusal justification.", "m2")
             else:
-                 show_feedback(False, "You missed some deletable data or didn't select enough. Try to clear all non-essential data.", "m2")
+                show_feedback(False, "Incorrect. Deleting AML records would violate financial regulations and expose Fiducia to massive fines.", "m2")
 
-def mission_passwords():
-    st.header("🔑 Mission 3: Password Hygiene")
-    st.markdown("It's time to update your password. The policy requires: 12+ chars, mixed case, numbers, and symbols.")
+def mission_access_control():
+    st.header("🔐 Mission 3: Access Control")
+    st.markdown("A partner developer needs temporary access to our 'Live Transaction Database' to debug a critical API integration failure preventing payments.")
     
-    password = st.text_input("Create a new password:", type="password")
+    st.subheader("What is the secure way to grant access?")
     
-    strength = 0
-    feedback = []
+    choice = st.radio("Method:", 
+                      ["Share the 'admin' database password via a self-destructing note.", 
+                       "Create a temporary user with 'Read-Only' access to the specific table needed.", 
+                       "Send them a sanitized dump of the database (no real PII).",
+                       "Grant them access via a shared team account."])
     
-    if len(password) >= 12:
-        strength += 1
-    else:
-        feedback.append("Too short (< 12 chars)")
-        
-    if any(c.isupper() for c in password) and any(c.islower() for c in password):
-        strength += 1
-    else:
-        feedback.append("Needs mixed case")
-        
-    if any(c.isdigit() for c in password):
-        strength += 1
-    else:
-        feedback.append("Needs a number")
-        
-    if any(not c.isalnum() for c in password):
-        strength += 1
-    else:
-        feedback.append("Needs a special character (!@#$)")
-
     if "m3" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
-        if st.button("Set Password"):
-            if strength == 4:
-                show_feedback(True, "Strong password set! It's long and complex.", "m3")
+        if st.button("Grant Access"):
+            if choice == "Send them a sanitized dump of the database (no real PII).":
+                show_feedback(True, "Best Practice. Never give external parties direct access to live production data if possible. A sanitized dump allows debugging without risk.", "m3")
+            elif choice == "Create a temporary user with 'Read-Only' access to the specific table needed.":
+                show_feedback(False, "Risky. Even read-only access exposes live PII (NDPR violation). Sanitized data is safer.", "m3")
             else:
-                st.error(f"Weak Password: {', '.join(feedback)}")
+                show_feedback(False, "Critical Failure. Never share admin credentials or use shared accounts.", "m3")
 
 def mission_physical():
     st.header("🏢 Mission 4: Physical Security")
-    st.markdown("You are leaving for lunch. Look at your desk setup below.")
+    st.markdown("You are working late on a printed 'Credit Risk Assessment' for a high-profile client. You need to use the restroom.")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("""
-        **Desk State:**
-        - 💻 Computer: Unlocked, showing customer data.
-        - 📄 Papers: 'Confidential Client List' on desk.
-        - 🔑 Keys: Office keys in the drawer.
-        """)
+    st.subheader("What do you do with the document?")
     
-    with col2:
-        st.image("https://img.icons8.com/color/96/000000/workstation.png", width=100)
-
-    action = st.selectbox("What do you do before leaving?", 
-                          ["Just go, I'll be back in 10 mins.", 
-                           "Lock computer (Win+L).", 
-                           "Lock computer AND put confidential papers in a locked drawer.",
-                           "Turn off the monitor."])
+    choice = st.radio("Action:", 
+                      ["Turn it face down on the desk.", 
+                       "Lock your office door.", 
+                       "Put it in a locked drawer/cabinet.",
+                       "Leave it, the office is empty anyway."])
     
     if "m4" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
-        if st.button("Go to Lunch"):
-            if action == "Lock computer AND put confidential papers in a locked drawer.":
-                show_feedback(True, "Excellent 'Clean Desk' policy adherence! You secured both digital and physical assets.", "m4")
-            elif action == "Lock computer (Win+L).":
-                show_feedback(False, "Good start, but you left confidential papers exposed on the desk!", "m4")
+        if st.button("Secure Desk"):
+            if choice == "Put it in a locked drawer/cabinet.":
+                show_feedback(True, "Correct. The 'Clean Desk Policy' applies 24/7. Cleaning staff or security guards could still access the area.", "m4")
             else:
-                show_feedback(False, "Major security risk! Never leave your workstation unlocked or sensitive papers out.", "m4")
+                show_feedback(False, "Insufficient. Locking the door isn't foolproof, and turning it over is useless. Secure it properly.", "m4")
 
-def mission_incident():
-    st.header("🚨 Mission 5: Incident Response")
-    st.markdown("You accidentally sent a file containing 500 customer credit card numbers to the wrong email address (external).")
+def mission_data_leak():
+    st.header("🚨 Mission 5: Data Leakage")
+    st.markdown("You intended to email a 'Vendor Credit Limit' spreadsheet to 'internal-finance@fiducia.com', but autocomplete sent it to 'ian@finance-competitor.com'.")
     
-    st.error("😱 Oh no! What do you do?")
+    st.subheader("Immediate Response Protocol:")
     
-    action = st.radio("Immediate Action:", 
-                      ["Panic and delete the email from your sent items.", 
-                       "Email the recipient and ask them to delete it politely.", 
-                       "Immediately report it to the Data Protection Officer (DPO) / IT Security.",
-                       "Ignore it, maybe no one will notice."])
+    choice = st.radio("Action:", 
+                      ["Recall the message in Outlook.", 
+                       "Email Ian and ask him to delete it.", 
+                       "Report to DPO/IT Security immediately.",
+                       "Wait to see if it bounces back."])
     
     if "m5" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
         if st.button("Execute Protocol"):
-            if action == "Immediately report it to the Data Protection Officer (DPO) / IT Security.":
-                show_feedback(True, "Correct. Speed is key. The DPO needs to assess if this is a reportable breach to the ICO.", "m5")
+            if choice == "Report to DPO/IT Security immediately.":
+                show_feedback(True, "Correct. Message recall rarely works externally. The DPO needs to assess the breach and potentially notify regulators.", "m5")
             else:
-                show_feedback(False, "Wrong. Hiding it or asking the recipient (who you don't know) is risky. Always report internally immediately.", "m5")
+                show_feedback(False, "Incorrect. Relying on recall or the recipient's goodwill is dangerous. You must report the breach internally.", "m5")
 
 def mission_ransomware():
-    st.header("💀 Mission 6: Ransomware Attack (Hard)")
-    st.markdown("Your screen turns red. A message appears: **'ALL YOUR FILES ARE ENCRYPTED. PAY 5 BTC TO UNLOCK.'**")
-    st.warning("You cannot access any client data. The business is at a standstill.")
+    st.header("💀 Mission 6: Ransomware Attack")
+    st.markdown("The 'Transaction Ledger' server is encrypted. A ransom note demands 10 BTC. Backups are 12 hours old (some data loss will occur).")
     
-    st.subheader("What is your strategic decision?")
-    action = st.radio("Choose your path:", 
-                      ["Pay the ransom immediately to get back online fast.", 
-                       "Disconnect from network, do NOT pay, and attempt to restore from backups.", 
-                       "Restart the server and hope it goes away.",
-                       "Email the hacker to negotiate a lower price."])
+    st.subheader("Strategic Decision:")
+    
+    choice = st.radio("Decision:", 
+                      ["Pay the ransom to ensure zero data loss.", 
+                       "Isolate the network, wipe the server, and restore from backups.", 
+                       "Try to decrypt it using online tools.",
+                       "Contact the attacker to negotiate."])
     
     if "m6" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
         if st.button("Make Decision"):
-            if action == "Disconnect from network, do NOT pay, and attempt to restore from backups.":
-                show_feedback(True, "Correct. Never pay the ransom (it funds crime and guarantees nothing). Isolation and restoration is the only professional response.", "m6")
-            elif "Pay" in action or "negotiate" in action:
-                show_feedback(False, "Wrong. Paying funds criminal activity and you might not even get the key. Always rely on backups.", "m6")
+            if choice == "Isolate the network, wipe the server, and restore from backups.":
+                show_feedback(True, "Correct. We accept the 12-hour data loss. Paying funds crime and there is no guarantee of decryption. We can reconstruct the 12 hours from other logs.", "m6")
             else:
-                show_feedback(False, "Restarting won't help. You need to isolate the machine to prevent spread.", "m6")
+                show_feedback(False, "Wrong. Paying is against policy. It marks us as a 'payer' for future attacks.", "m6")
 
 def mission_ceo_fraud():
-    st.header("🎭 Mission 7: CEO Fraud (Hard)")
-    st.markdown("You receive a WhatsApp message from the 'CEO' (using a profile pic you recognize).")
+    st.header("🎭 Mission 7: CEO Fraud (BEC)")
+    st.markdown("You receive a WhatsApp from the CEO: 'I'm at a conference. We need to change the settlement account for the 'Project Alpha' vendor immediately to this new offshore account. Do it now.'")
     
-    with st.chat_message("user", avatar="👨‍💼"):
-        st.write("Hi, I'm in a meeting. I need you to process a wire transfer of $15,000 to this vendor ASAP. It's urgent for the deal. Don't call me.")
+    st.subheader("Action:")
     
-    st.subheader("How do you respond?")
-    action = st.radio("Response:", 
-                      ["Process it immediately, it's the CEO.", 
-                       "Reply asking for the bank details.", 
-                       "Verify via a different channel (call the CEO or check with Finance Director).",
-                       "Ignore it."])
+    choice = st.radio("Response:", 
+                      ["Process the change, it's the CEO.", 
+                       "Call the CEO on their official number to verify.", 
+                       "Reply on WhatsApp asking for a confirmation code.",
+                       "Wait until they return."])
     
     if "m7" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
         if st.button("Send Response"):
-            if action == "Verify via a different channel (call the CEO or check with Finance Director).":
-                show_feedback(True, "Spot on. This is a classic 'Business Email Compromise' or impersonation attack. Always verify urgent financial requests out-of-band.", "m7")
-            elif action == "Ignore it.":
-                show_feedback(False, "Ignoring it is safe, but reporting it or verifying it is better protocol.", "m7")
+            if choice == "Call the CEO on their official number to verify.":
+                show_feedback(True, "Correct. Out-of-band verification is mandatory for payment instruction changes. WhatsApp is easily impersonated.", "m7")
             else:
-                show_feedback(False, "Dangerous! Never process financial requests based on a text/email alone, especially if they pressure you to 'not call'.", "m7")
+                show_feedback(False, "Incorrect. Never process financial changes based on unverified messages, regardless of the sender's apparent rank.", "m7")
 
-def mission_vendor():
-    st.header("🤝 Mission 8: Vendor Risk (Hard)")
-    st.markdown("Marketing wants to use a new AI tool, 'MagicAnalytics', to process customer data. They sent you the contract.")
+def mission_shadow_it():
+    st.header("☁️ Mission 8: Shadow IT")
+    st.markdown("A marketing manager is using a free online tool, 'PDF-Merger-Online', to combine sensitive Loan Agreements for easier storage.")
     
-    st.info("**Contract Clause:** 'MagicAnalytics reserves the right to sell anonymized user data to third parties.'")
+    st.subheader("Why is this a risk?")
     
-    st.subheader("Do you approve this vendor?")
-    action = st.radio("Decision:", 
-                      ["Yes, anonymized data is fine.", 
-                       "No, reject the tool until they remove that clause.", 
-                       "Yes, but ask them nicely not to do it.",
-                       "I don't know, just sign it."])
+    choice = st.radio("Analysis:", 
+                      ["It's not a risk if the tool uses HTTPS.", 
+                       "We don't have a contract with this vendor, and data is leaving our control.", 
+                       "The tool might be slow.",
+                       "It costs money."])
     
     if "m8" in st.session_state.completed_missions:
-        st.success("✅ Mission Completed")
+        st.info("Mission Completed")
     else:
-        if st.button("Submit Approval"):
-            if action == "No, reject the tool until they remove that clause.":
-                show_feedback(True, "Correct. 'Anonymized' data can often be re-identified. Selling customer data usually violates NDPR/CCPA and our privacy policy.", "m8")
+        if st.button("Submit Analysis"):
+            if choice == "We don't have a contract with this vendor, and data is leaving our control.":
+                show_feedback(True, "Correct. This is 'Shadow IT'. We have no DPA (Data Processing Agreement) in place, and the free tool likely monetizes the data.", "m8")
             else:
-                show_feedback(False, "Risky. Selling data (even anonymized) is a major privacy red flag and likely violates our data protection promises.", "m8")
+                show_feedback(False, "Incorrect. HTTPS only protects data in transit. The risk is that the vendor now owns/stores our data without legal protection.", "m8")
+
+def mission_secure_dev():
+    st.header("💻 Mission 9: Secure Development")
+    st.markdown("You are reviewing a script written by a junior dev to automate 'Daily Reconciliation'. You see this line:\n\n`aws_secret_key = 'AKIA...12345'`")
+    
+    st.subheader("What is the vulnerability?")
+    
+    choice = st.radio("Identify the flaw:", 
+                      ["The variable name is too obvious.", 
+                       "Hardcoded credentials in source code.", 
+                       "Python is not secure for reconciliation.",
+                       "The key is too short."])
+    
+    if "m9" in st.session_state.completed_missions:
+        st.info("Mission Completed")
+    else:
+        if st.button("Report Vulnerability"):
+            if choice == "Hardcoded credentials in source code.":
+                show_feedback(True, "Correct. If this code is pushed to a repo (even private), the keys are compromised. Use Environment Variables or a Secrets Manager.", "m9")
+            else:
+                show_feedback(False, "Incorrect. The issue is **Hardcoded Credentials**. This is a top OWASP vulnerability.", "m9")
+
+def mission_insider():
+    st.header("🕵️ Mission 10: Insider Threat")
+    st.markdown("You notice a colleague from Sales copying the entire 'Client Master Database' (including credit limits and tax IDs) to a personal USB drive.")
+    st.markdown("*They say: 'I just need to work on this at home over the weekend.'*")
+    
+    st.subheader("Action:")
+    
+    choice = st.radio("Decision:", 
+                      ["Let them, they are a trusted employee.", 
+                       "Tell them to encrypt the USB drive first.", 
+                       "Stop them and report to Security immediately.",
+                       "Ask them to email it to themselves instead."])
+    
+    if "m10" in st.session_state.completed_missions:
+        st.info("Mission Completed")
+    else:
+        if st.button("Intervene"):
+            if choice == "Stop them and report to Security immediately.":
+                show_feedback(True, "Correct. Data exfiltration (even with good intent) is a massive risk. Personal USBs are strictly prohibited.", "m10")
+            else:
+                show_feedback(False, "Incorrect. You must stop the exfiltration. 'Working from home' should be done via secure VPN/VDI, not by moving data.", "m10")
 
 def certification():
     st.title("🏆 Course Completion")
@@ -485,7 +510,7 @@ def certification():
         st.balloons()
         st.success(f"CONGRATULATIONS, {st.session_state.user_name}!")
         st.markdown(f"""
-        You have successfully completed the **Fiducia Data Protection Training**.
+        You have completed the **Fiducia IT Supply Chain Security Training**.
         
         **Final Score:** {st.session_state.score} / {TOTAL_MISSIONS * MAX_SCORE_PER_MISSION}
         
@@ -527,22 +552,26 @@ current_page_name = PAGES[st.session_state.page_index]
 
 if current_page_name == "🏠 Dashboard":
     dashboard()
-elif current_page_name == "📧 Mission 1: Phishing Defense":
+elif current_page_name == "📧 Mission 1: Supply Chain Phishing":
     mission_phishing()
 elif current_page_name == "⚖️ Mission 2: Data Rights (NDPR)":
     mission_data_rights()
-elif current_page_name == "🔑 Mission 3: Password Hygiene":
-    mission_passwords()
+elif current_page_name == "🔐 Mission 3: Access Control":
+    mission_access_control()
 elif current_page_name == "🏢 Mission 4: Physical Security":
     mission_physical()
-elif current_page_name == "🚨 Mission 5: Incident Response":
-    mission_incident()
-elif current_page_name == "💀 Mission 6: Ransomware (Hard)":
+elif current_page_name == "🚨 Mission 5: Data Leakage":
+    mission_data_leak()
+elif current_page_name == "💀 Mission 6: Ransomware Attack":
     mission_ransomware()
-elif current_page_name == "🎭 Mission 7: CEO Fraud (Hard)":
+elif current_page_name == "🎭 Mission 7: CEO Fraud (BEC)":
     mission_ceo_fraud()
-elif current_page_name == "🤝 Mission 8: Vendor Risk (Hard)":
-    mission_vendor()
+elif current_page_name == "☁️ Mission 8: Shadow IT":
+    mission_shadow_it()
+elif current_page_name == "💻 Mission 9: Secure Development":
+    mission_secure_dev()
+elif current_page_name == "🕵️ Mission 10: Insider Threat":
+    mission_insider()
 elif current_page_name == "🏆 Certification":
     certification()
 
