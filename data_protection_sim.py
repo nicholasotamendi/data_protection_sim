@@ -4,6 +4,8 @@ import random
 import csv
 import os
 from datetime import datetime
+from fpdf import FPDF
+import base64
 
 # Page Configuration
 st.set_page_config(
@@ -83,20 +85,23 @@ if 'score' not in st.session_state:
 if 'completed_missions' not in st.session_state:
     st.session_state.completed_missions = set()
 if 'user_name' not in st.session_state:
-    st.session_state.user_name = "Data Connoisuer"
+    st.session_state.user_name = "Trainee"
 if 'page_index' not in st.session_state:
     st.session_state.page_index = 0
 
 # --- Constants ---
-TOTAL_MISSIONS = 5
+TOTAL_MISSIONS = 8
 MAX_SCORE_PER_MISSION = 100
 PAGES = [
     "🏠 Dashboard",
     "📧 Mission 1: Phishing Defense",
-    "⚖️ Mission 2: Data Rights (NDPR)",
+    "⚖️ Mission 2: Data Rights (GDPR)",
     "🔑 Mission 3: Password Hygiene",
     "🏢 Mission 4: Physical Security",
     "🚨 Mission 5: Incident Response",
+    "💀 Mission 6: Ransomware (Hard)",
+    "🎭 Mission 7: CEO Fraud (Hard)",
+    "🤝 Mission 8: Vendor Risk (Hard)",
     "🏆 Certification"
 ]
 
@@ -106,7 +111,10 @@ MISSION_MAP = {
     2: "m2",
     3: "m3",
     4: "m4",
-    5: "m5"
+    5: "m5",
+    6: "m6",
+    7: "m7",
+    8: "m8"
 }
 
 # --- Helper Functions ---
@@ -136,6 +144,28 @@ def save_result(username, score):
         if not file_exists:
             writer.writerow(['Timestamp', 'Username', 'Score', 'Completed'])
         writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), username, score, len(st.session_state.completed_missions) == TOTAL_MISSIONS])
+
+def create_pdf(username, score):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=24)
+    pdf.cell(200, 20, txt="Certificate of Completion", ln=1, align="C")
+    
+    pdf.set_font("Arial", size=16)
+    pdf.cell(200, 10, txt="This certifies that", ln=1, align="C")
+    
+    pdf.set_font("Arial", "B", size=20)
+    pdf.cell(200, 10, txt=username, ln=1, align="C")
+    
+    pdf.set_font("Arial", size=16)
+    pdf.cell(200, 10, txt="has successfully completed the", ln=1, align="C")
+    pdf.cell(200, 10, txt="Fiducia Data Protection Training", ln=1, align="C")
+    
+    pdf.ln(10)
+    pdf.cell(200, 10, txt=f"Score: {score} / {TOTAL_MISSIONS * MAX_SCORE_PER_MISSION}", ln=1, align="C")
+    pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%d %B %Y')}", ln=1, align="C")
+    
+    return pdf.output(dest="S").encode("latin-1")
 
 def nav_buttons():
     st.markdown("---")
@@ -203,12 +233,12 @@ with st.sidebar:
 
 def dashboard():
     st.title("🛡️ Fiducia Data Protection Training Hub")
-    st.markdown("""
+    st.markdown(f"""
     Welcome to the **Fiducia Data Protection Simulator**. Your goal is to navigate through real-world scenarios 
     and make the right decisions to protect our company's data.
     
     ### 🎯 Your Objectives
-    1. Complete all **5 Missions**.
+    1. Complete all **{TOTAL_MISSIONS} Missions**.
     2. Achieve a high score to earn your **Certificate**.
     3. Learn how to spot threats and handle data responsibly.
     
@@ -243,7 +273,6 @@ def mission_phishing():
     
     st.subheader("What is your immediate action?")
     
-    # Use session state to persist choice if needed, but for now standard radio is fine
     choice = st.radio("Choose wisely:", 
                       ["Click the link to verify quickly.", 
                        "Reply to ask if it's real.", 
@@ -270,7 +299,9 @@ def mission_data_rights():
     st.subheader("Select which data records you will delete:")
     
     options = ["Marketing Email Subscription", "Customer Support Chat Logs", "Transaction History (Tax Invoices)", "Shipping Address"]
-    selections = st.multiselect("Select items to delete:", options)
+    # FIX: Ensure multiselect renders correctly by giving it a unique key if needed, though standard usage is usually fine.
+    # The issue might have been state related.
+    selections = st.multiselect("Select items to delete:", options, key="m2_multiselect")
     
     if "m2" in st.session_state.completed_missions:
         st.success("✅ Mission Completed")
@@ -377,6 +408,76 @@ def mission_incident():
             else:
                 show_feedback(False, "Wrong. Hiding it or asking the recipient (who you don't know) is risky. Always report internally immediately.", "m5")
 
+def mission_ransomware():
+    st.header("💀 Mission 6: Ransomware Attack (Hard)")
+    st.markdown("Your screen turns red. A message appears: **'ALL YOUR FILES ARE ENCRYPTED. PAY 5 BTC TO UNLOCK.'**")
+    st.warning("You cannot access any client data. The business is at a standstill.")
+    
+    st.subheader("What is your strategic decision?")
+    action = st.radio("Choose your path:", 
+                      ["Pay the ransom immediately to get back online fast.", 
+                       "Disconnect from network, do NOT pay, and attempt to restore from backups.", 
+                       "Restart the server and hope it goes away.",
+                       "Email the hacker to negotiate a lower price."])
+    
+    if "m6" in st.session_state.completed_missions:
+        st.success("✅ Mission Completed")
+    else:
+        if st.button("Make Decision"):
+            if action == "Disconnect from network, do NOT pay, and attempt to restore from backups.":
+                show_feedback(True, "Correct. Never pay the ransom (it funds crime and guarantees nothing). Isolation and restoration is the only professional response.", "m6")
+            elif "Pay" in action or "negotiate" in action:
+                show_feedback(False, "Wrong. Paying funds criminal activity and you might not even get the key. Always rely on backups.", "m6")
+            else:
+                show_feedback(False, "Restarting won't help. You need to isolate the machine to prevent spread.", "m6")
+
+def mission_ceo_fraud():
+    st.header("🎭 Mission 7: CEO Fraud (Hard)")
+    st.markdown("You receive a WhatsApp message from the 'CEO' (using a profile pic you recognize).")
+    
+    with st.chat_message("user", avatar="👨‍💼"):
+        st.write("Hi, I'm in a meeting. I need you to process a wire transfer of $15,000 to this vendor ASAP. It's urgent for the deal. Don't call me.")
+    
+    st.subheader("How do you respond?")
+    action = st.radio("Response:", 
+                      ["Process it immediately, it's the CEO.", 
+                       "Reply asking for the bank details.", 
+                       "Verify via a different channel (call the CEO or check with Finance Director).",
+                       "Ignore it."])
+    
+    if "m7" in st.session_state.completed_missions:
+        st.success("✅ Mission Completed")
+    else:
+        if st.button("Send Response"):
+            if action == "Verify via a different channel (call the CEO or check with Finance Director).":
+                show_feedback(True, "Spot on. This is a classic 'Business Email Compromise' or impersonation attack. Always verify urgent financial requests out-of-band.", "m7")
+            elif action == "Ignore it.":
+                show_feedback(False, "Ignoring it is safe, but reporting it or verifying it is better protocol.", "m7")
+            else:
+                show_feedback(False, "Dangerous! Never process financial requests based on a text/email alone, especially if they pressure you to 'not call'.", "m7")
+
+def mission_vendor():
+    st.header("🤝 Mission 8: Vendor Risk (Hard)")
+    st.markdown("Marketing wants to use a new AI tool, 'MagicAnalytics', to process customer data. They sent you the contract.")
+    
+    st.info("**Contract Clause:** 'MagicAnalytics reserves the right to sell anonymized user data to third parties.'")
+    
+    st.subheader("Do you approve this vendor?")
+    action = st.radio("Decision:", 
+                      ["Yes, anonymized data is fine.", 
+                       "No, reject the tool until they remove that clause.", 
+                       "Yes, but ask them nicely not to do it.",
+                       "I don't know, just sign it."])
+    
+    if "m8" in st.session_state.completed_missions:
+        st.success("✅ Mission Completed")
+    else:
+        if st.button("Submit Approval"):
+            if action == "No, reject the tool until they remove that clause.":
+                show_feedback(True, "Correct. 'Anonymized' data can often be re-identified. Selling customer data usually violates GDPR/CCPA and our privacy policy.", "m8")
+            else:
+                show_feedback(False, "Risky. Selling data (even anonymized) is a major privacy red flag and likely violates our data protection promises.", "m8")
+
 def certification():
     st.title("🏆 Course Completion")
     
@@ -394,6 +495,15 @@ def certification():
         # Save Result
         save_result(st.session_state.user_name, st.session_state.score)
         st.info("✅ Your result has been logged.")
+        
+        # PDF Download
+        pdf_bytes = create_pdf(st.session_state.user_name, st.session_state.score)
+        st.download_button(
+            label="📄 Download Certificate (PDF)",
+            data=pdf_bytes,
+            file_name="Fiducia_Certificate.pdf",
+            mime="application/pdf"
+        )
         
         # Certificate Mockup
         st.markdown("---")
@@ -427,6 +537,12 @@ elif current_page_name == "🏢 Mission 4: Physical Security":
     mission_physical()
 elif current_page_name == "🚨 Mission 5: Incident Response":
     mission_incident()
+elif current_page_name == "💀 Mission 6: Ransomware (Hard)":
+    mission_ransomware()
+elif current_page_name == "🎭 Mission 7: CEO Fraud (Hard)":
+    mission_ceo_fraud()
+elif current_page_name == "🤝 Mission 8: Vendor Risk (Hard)":
+    mission_vendor()
 elif current_page_name == "🏆 Certification":
     certification()
 
