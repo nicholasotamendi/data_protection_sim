@@ -95,7 +95,7 @@ MAX_SCORE_PER_MISSION = 100
 PAGES = [
     "🏠 Dashboard",
     "📧 Mission 1: Phishing Defense",
-    "⚖️ Mission 2: Data Rights (GDPR)",
+    "⚖️ Mission 2: Data Rights (NDPR)",
     "🔑 Mission 3: Password Hygiene",
     "🏢 Mission 4: Physical Security",
     "🚨 Mission 5: Incident Response",
@@ -291,7 +291,7 @@ def mission_phishing():
                 show_feedback(False, "Not the best course of action. Always report suspicious emails directly via the 'Report Phish' button.", "m1")
 
 def mission_data_rights():
-    st.header("⚖️ Mission 2: Data Rights (GDPR)")
+    st.header("⚖️ Mission 2: Data Rights (NDPR)")
     st.markdown("A customer, **John Doe**, submits a **Subject Access Request (SAR)** asking for his data to be deleted.")
     
     st.info("Request: 'I want you to delete everything you have on me!'")
@@ -474,7 +474,7 @@ def mission_vendor():
     else:
         if st.button("Submit Approval"):
             if action == "No, reject the tool until they remove that clause.":
-                show_feedback(True, "Correct. 'Anonymized' data can often be re-identified. Selling customer data usually violates GDPR/CCPA and our privacy policy.", "m8")
+                show_feedback(True, "Correct. 'Anonymized' data can often be re-identified. Selling customer data usually violates NDPR/CCPA and our privacy policy.", "m8")
             else:
                 show_feedback(False, "Risky. Selling data (even anonymized) is a major privacy red flag and likely violates our data protection promises.", "m8")
 
@@ -529,7 +529,7 @@ if current_page_name == "🏠 Dashboard":
     dashboard()
 elif current_page_name == "📧 Mission 1: Phishing Defense":
     mission_phishing()
-elif current_page_name == "⚖️ Mission 2: Data Rights (GDPR)":
+elif current_page_name == "⚖️ Mission 2: Data Rights (NDPR)":
     mission_data_rights()
 elif current_page_name == "🔑 Mission 3: Password Hygiene":
     mission_passwords()
