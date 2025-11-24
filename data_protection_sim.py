@@ -68,41 +68,67 @@ st.markdown("""
     
     /* Certificate Style */
     .certificate-container {
-        border: 5px solid #101745;
-        padding: 30px;
+        border: 10px double #101745;
+        padding: 40px;
         background-color: #fff;
         text-align: center;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        margin: 20px 0;
-        background-image: linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.95)), url("https://www.transparenttextures.com/patterns/cubes.png");
+        border-radius: 10px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+        margin: 30px auto;
+        max-width: 800px;
+        background-image: radial-gradient(circle, #ffffff 0%, #f0f2f5 100%);
+        position: relative;
+    }
+    .certificate-container::before {
+        content: "🏆";
+        font-size: 100px;
+        opacity: 0.1;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 0;
     }
     .cert-header {
-        color: #1560bd;
-        font-size: 40px;
-        font-weight: bold;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-    }
-    .cert-body {
-        font-size: 20px;
-        color: #333;
-        margin: 20px 0;
-    }
-    .cert-name {
-        font-size: 36px;
         color: #101745;
+        font-family: 'Georgia', serif;
+        font-size: 48px;
         font-weight: bold;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 4px;
         border-bottom: 2px solid #1560bd;
         display: inline-block;
-        padding: 0 20px;
-        margin: 10px 0;
+        padding-bottom: 10px;
+        position: relative;
+        z-index: 1;
+    }
+    .cert-body {
+        font-size: 22px;
+        color: #555;
+        margin: 15px 0;
+        font-family: 'Poppins', sans-serif;
+        position: relative;
+        z-index: 1;
+    }
+    .cert-name {
+        font-size: 50px;
+        color: #1560bd;
+        font-family: 'Georgia', serif;
+        font-weight: bold;
+        margin: 20px 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 1;
     }
     .cert-footer {
-        font-size: 16px;
-        color: #666;
-        margin-top: 30px;
+        font-size: 18px;
+        color: #777;
+        margin-top: 40px;
+        border-top: 1px solid #ddd;
+        padding-top: 20px;
+        position: relative;
+        z-index: 1;
     }
     
     /* Success/Error */
@@ -132,6 +158,8 @@ if 'confirm_reset' not in st.session_state:
     st.session_state.confirm_reset = False
 if 'confirm_reset_cert' not in st.session_state:
     st.session_state.confirm_reset_cert = False
+if 'result_saved' not in st.session_state:
+    st.session_state.result_saved = False
 
 # --- Constants ---
 TOTAL_MISSIONS = 10
@@ -599,10 +627,11 @@ def certification():
             st.success(f"Congratulations! You have passed with a score of {st.session_state.score} / {max_possible_score}.")
             
             # 2. Save Result (if not already saved this session/run)
-            # Note: In a real app we'd check if we already saved to avoid dupes, but simple append is fine for now.
-            # We'll just save it every time they land here to be safe, or we could add a flag.
-            # Let's just save it.
-            save_result(st.session_state.user_name, st.session_state.score)
+            if not st.session_state.result_saved:
+                save_result(st.session_state.user_name, st.session_state.score)
+                st.session_state.result_saved = True
+                # Optional: Show a toast or small message
+                # st.toast("Result saved successfully!")
             
             # 3. PDF Download
             pdf_bytes = create_pdf(st.session_state.user_name, st.session_state.score)
