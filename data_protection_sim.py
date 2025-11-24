@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 from fpdf import FPDF
 import base64
+import pandas as pd
 
 # Page Configuration
 st.set_page_config(
@@ -88,6 +89,10 @@ if 'user_name' not in st.session_state:
     st.session_state.user_name = "Trainee"
 if 'page_index' not in st.session_state:
     st.session_state.page_index = 0
+if 'confirm_reset' not in st.session_state:
+    st.session_state.confirm_reset = False
+if 'confirm_reset_cert' not in st.session_state:
+    st.session_state.confirm_reset_cert = False
 
 # --- Constants ---
 TOTAL_MISSIONS = 10
@@ -104,7 +109,8 @@ PAGES = [
     "☁️ Mission 8: Shadow IT",
     "💻 Mission 9: Secure Development",
     "🕵️ Mission 10: Insider Threat",
-    "🏆 Certification"
+    "🏆 Certification",
+    "🏆 Leaderboard"
 ]
 
 # Map page index to mission ID for validation
@@ -139,7 +145,7 @@ def mark_complete(mission_id, points, message=None):
             else:
                 st.error("❌ Incorrect. Moving to next mission...")
             
-        time.sleep(7) # Pause to read feedback
+        time.sleep(5) # Pause to read feedback
         
         # Auto-advance
         if st.session_state.page_index < len(PAGES) - 1:
@@ -240,11 +246,23 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    if st.button("Reset Simulator"):
-        st.session_state.score = 0
-        st.session_state.completed_missions = set()
-        st.session_state.page_index = 0
-        st.rerun()
+    st.markdown("---")
+    if not st.session_state.confirm_reset:
+        if st.button("Reset Simulator"):
+            st.session_state.confirm_reset = True
+            st.rerun()
+    else:
+        st.warning("⚠️ Are you sure? All progress will be lost.")
+        col1, col2 = st.columns(2)
+        if col1.button("Yes, Reset", key="sidebar_reset_yes"):
+            st.session_state.score = 0
+            st.session_state.completed_missions = set()
+            st.session_state.page_index = 0
+            st.session_state.confirm_reset = False
+            st.rerun()
+        if col2.button("Cancel", key="sidebar_reset_no"):
+            st.session_state.confirm_reset = False
+            st.rerun()
 
 # --- Missions ---
 
@@ -259,15 +277,21 @@ def dashboard():
     ### 🎯 Your Objectives
     1. Complete all **{TOTAL_MISSIONS} Missions**.
     2. **Warning:** Incorrect answers will result in **0 points** and you cannot retry.
-    3. Achieve a high score to earn your **Certificate**.
+    3. Achieve a score of at least **80%** to earn your **Certificate**.
     
     Enter your name below to begin:
     """)
     
     name_input = st.text_input("Enter your name", value=st.session_state.user_name)
-    if name_input != st.session_state.user_name:
-        st.session_state.user_name = name_input
-        st.rerun()
+    
+    if st.button("Start Training"):
+        if name_input.strip():
+            st.session_state.user_name = name_input.strip()
+            # Move to first mission
+            st.session_state.page_index = 1
+            st.rerun()
+        else:
+            st.error("Please enter a valid name.")
 
     st.info("👈 Select a mission from the sidebar or click Next to start.")
 
@@ -534,17 +558,19 @@ def certification():
                 mime="application/pdf"
             )
             
-            # Certificate Mockup
+            # Show Leaderboard Preview
             st.markdown("---")
-            st.markdown(f"""
-            <div style="padding: 20px; border: 10px solid #FFD700; text-align: center; background-color: #ffffff; color: #333; font-family: 'Poppins', sans-serif;">
-                <h1>Certificate of Completion</h1>
-                <p>This certifies that</p>
-                <h2>{st.session_state.user_name}</h2>
-                <p>has demonstrated excellence in Data Protection & Security Awareness.</p>
-                <p>Date: {time.strftime("%d %B %Y")}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.subheader("📊 Top 5 High Scores")
+            if os.path.isfile('training_log.csv'):
+                try:
+                    df = pd.read_csv('training_log.csv')
+                    if not df.empty:
+                        # Sort by Score (desc) and Timestamp (desc)
+                        df = df.sort_values(by=['Score', 'Timestamp'], ascending=[False, False])
+                        st.table(df[['Username', 'Score', 'Timestamp']].head(5))
+                except Exception as e:
+                    st.error(f"Could not load leaderboard: {e}")
+
         else:
             st.error(f"Course Completed, but Score Insufficient.")
             st.markdown(f"""
@@ -555,15 +581,56 @@ def certification():
             Please **Reset the Simulator** from the sidebar and try again to demonstrate your mastery of the material.
             """)
             
-            if st.button("🔄 Reset Simulator & Try Again"):
-                st.session_state.score = 0
-                st.session_state.completed_missions = set()
-                st.session_state.page_index = 0
-                st.rerun()
+            # Save Result (Log attempt even if failed)
+            save_result(st.session_state.user_name, st.session_state.score)
+            
+            if not st.session_state.confirm_reset_cert:
+                if st.button("🔄 Reset Simulator & Try Again"):
+                    st.session_state.confirm_reset_cert = True
+                    st.rerun()
+            else:
+                st.warning("⚠️ Are you sure you want to reset? All progress will be lost.")
+                col1, col2 = st.columns(2)
+                if col1.button("Yes, Reset", key="cert_reset_yes"):
+                    st.session_state.score = 0
+                    st.session_state.completed_missions = set()
+                    st.session_state.page_index = 0
+                    st.session_state.confirm_reset_cert = False
+                    st.rerun()
+                if col2.button("Cancel", key="cert_reset_no"):
+                    st.session_state.confirm_reset_cert = False
+                    st.rerun()
             
     else:
         st.warning(f"You have completed {len(st.session_state.completed_missions)} / {TOTAL_MISSIONS} missions.")
         st.write("Please complete all missions to unlock your certificate.")
+
+def leaderboard():
+    st.title("🏆 Hall of Fame")
+    st.markdown("The top performing Data Guardians.")
+    
+    if os.path.isfile('training_log.csv'):
+        try:
+            df = pd.read_csv('training_log.csv')
+            if not df.empty:
+                # Sort by Score (desc) and Timestamp (desc)
+                df = df.sort_values(by=['Score', 'Timestamp'], ascending=[False, False])
+                
+                # Reset index to start at 1
+                df.reset_index(drop=True, inplace=True)
+                df.index += 1
+                
+                st.dataframe(
+                    df[['Username', 'Score', 'Timestamp']], 
+                    use_container_width=True,
+                    height=500
+                )
+            else:
+                st.info("No records found yet. Be the first!")
+        except Exception as e:
+            st.error(f"Error loading leaderboard: {e}")
+    else:
+        st.info("No records found yet.")
 
 # --- Main Routing ---
 # Get current page from state
@@ -593,6 +660,8 @@ elif current_page_name == "🕵️ Mission 10: Insider Threat":
     mission_insider()
 elif current_page_name == "🏆 Certification":
     certification()
+elif current_page_name == "🏆 Leaderboard":
+    leaderboard()
 
 # Render Navigation Buttons
 nav_buttons()
