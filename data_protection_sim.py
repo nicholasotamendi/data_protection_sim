@@ -23,28 +23,28 @@ st.markdown("""
 
     html, body, [class*="css"] {
         font-family: 'Poppins', sans-serif;
+        color: #101745;
     }
 
     .stApp {
-        background-color: #f4f7f6;
-        color: #333333;
+        background-color: #ffffff;
     }
 
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #ffffff;
+        background-color: #f8f9fa;
         border-right: 1px solid #e0e0e0;
     }
     
     /* Headers */
     h1, h2, h3 {
-        color: #2c3e50;
+        color: #101745; /* Fiducia Purple */
         font-weight: 700;
     }
     
     /* Buttons */
     .stButton > button {
-        background-color: #3498db;
+        background-color: #1560bd; /* Fiducia Blue */
         color: white;
         border: none;
         border-radius: 8px;
@@ -53,7 +53,7 @@ st.markdown("""
         transition: all 0.2s ease;
     }
     .stButton > button:hover {
-        background-color: #2980b9;
+        background-color: #104a9e;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
 
@@ -64,6 +64,45 @@ st.markdown("""
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         padding: 20px;
         border: 1px solid #eaeaea;
+    }
+    
+    /* Certificate Style */
+    .certificate-container {
+        border: 5px solid #101745;
+        padding: 30px;
+        background-color: #fff;
+        text-align: center;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        margin: 20px 0;
+        background-image: linear-gradient(rgba(255,255,255,0.95), rgba(255,255,255,0.95)), url("https://www.transparenttextures.com/patterns/cubes.png");
+    }
+    .cert-header {
+        color: #1560bd;
+        font-size: 40px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    .cert-body {
+        font-size: 20px;
+        color: #333;
+        margin: 20px 0;
+    }
+    .cert-name {
+        font-size: 36px;
+        color: #101745;
+        font-weight: bold;
+        border-bottom: 2px solid #1560bd;
+        display: inline-block;
+        padding: 0 20px;
+        margin: 10px 0;
+    }
+    .cert-footer {
+        font-size: 16px;
+        color: #666;
+        margin-top: 30px;
     }
     
     /* Success/Error */
@@ -530,26 +569,42 @@ def mission_insider():
 def certification():
     st.title("🏆 Course Completion")
     
+    # Calculate scores
+    max_possible_score = TOTAL_MISSIONS * MAX_SCORE_PER_MISSION
+    passing_score = max_possible_score * 0.8
+    is_passed = st.session_state.score >= passing_score
+    
+    # Check if all missions are done
     if len(st.session_state.completed_missions) == TOTAL_MISSIONS:
-        max_possible_score = TOTAL_MISSIONS * MAX_SCORE_PER_MISSION
-        passing_score = max_possible_score * 0.8
         
-        if st.session_state.score >= passing_score:
+        if is_passed:
+            # --- SUCCESS STATE ---
             st.balloons()
-            st.success(f"CONGRATULATIONS, {st.session_state.user_name}!")
+            
+            # 1. Visual Certificate
             st.markdown(f"""
-            You have completed the **Data Protection & Security Awareness Training**.
+            <div class="certificate-container">
+                <div class="cert-header">Certificate of Completion</div>
+                <div class="cert-body">This certifies that</div>
+                <div class="cert-name">{st.session_state.user_name}</div>
+                <div class="cert-body">has successfully completed the</div>
+                <div class="cert-body"><b>Fiducia Data Protection Training</b></div>
+                <div class="cert-footer">
+                    Date: {datetime.now().strftime('%d %B %Y')} <br>
+                    Score: {st.session_state.score} / {max_possible_score}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
-            **Final Score:** {st.session_state.score} / {max_possible_score}
+            st.success(f"Congratulations! You have passed with a score of {st.session_state.score} / {max_possible_score}.")
             
-            You are now a certified Data Guardian! 🛡️
-            """)
-            
-            # Save Result
+            # 2. Save Result (if not already saved this session/run)
+            # Note: In a real app we'd check if we already saved to avoid dupes, but simple append is fine for now.
+            # We'll just save it every time they land here to be safe, or we could add a flag.
+            # Let's just save it.
             save_result(st.session_state.user_name, st.session_state.score)
-            st.info("✅ Your result has been logged.")
             
-            # PDF Download
+            # 3. PDF Download
             pdf_bytes = create_pdf(st.session_state.user_name, st.session_state.score)
             st.download_button(
                 label="📄 Download Certificate (PDF)",
@@ -558,20 +613,8 @@ def certification():
                 mime="application/pdf"
             )
             
-            # Show Leaderboard Preview
-            st.markdown("---")
-            st.subheader("📊 Top 5 High Scores")
-            if os.path.isfile('training_log.csv'):
-                try:
-                    df = pd.read_csv('training_log.csv')
-                    if not df.empty:
-                        # Sort by Score (desc) and Timestamp (desc)
-                        df = df.sort_values(by=['Score', 'Timestamp'], ascending=[False, False])
-                        st.table(df[['Username', 'Score', 'Timestamp']].head(5))
-                except Exception as e:
-                    st.error(f"Could not load leaderboard: {e}")
-
         else:
+            # --- FAILURE STATE ---
             st.error(f"Course Completed, but Score Insufficient.")
             st.markdown(f"""
             You have completed all missions, but your score of **{st.session_state.score} / {max_possible_score}** is below the 80% passing threshold ({int(passing_score)} points).
@@ -600,7 +643,28 @@ def certification():
                 if col2.button("Cancel", key="cert_reset_no"):
                     st.session_state.confirm_reset_cert = False
                     st.rerun()
-            
+
+        # --- LEADERBOARD (Always Visible when done) ---
+        st.markdown("---")
+        st.subheader("🏆 Hall of Fame")
+        if os.path.isfile('training_log.csv'):
+            try:
+                df = pd.read_csv('training_log.csv')
+                if not df.empty:
+                    # Sort by Score (desc) and Timestamp (desc)
+                    df = df.sort_values(by=['Score', 'Timestamp'], ascending=[False, False])
+                    # Reset index
+                    df.reset_index(drop=True, inplace=True)
+                    df.index += 1
+                    
+                    st.dataframe(
+                        df[['Username', 'Score', 'Timestamp']], 
+                        use_container_width=True,
+                        height=300
+                    )
+            except Exception as e:
+                st.error(f"Could not load leaderboard: {e}")
+
     else:
         st.warning(f"You have completed {len(st.session_state.completed_missions)} / {TOTAL_MISSIONS} missions.")
         st.write("Please complete all missions to unlock your certificate.")
