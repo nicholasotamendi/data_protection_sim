@@ -507,41 +507,54 @@ def certification():
     st.title("🏆 Course Completion")
     
     if len(st.session_state.completed_missions) == TOTAL_MISSIONS:
-        st.balloons()
-        st.success(f"CONGRATULATIONS, {st.session_state.user_name}!")
-        st.markdown(f"""
-        You have completed the **Data Protection & Security Awareness Training**.
+        max_possible_score = TOTAL_MISSIONS * MAX_SCORE_PER_MISSION
+        passing_score = max_possible_score * 0.8
         
-        **Final Score:** {st.session_state.score} / {TOTAL_MISSIONS * MAX_SCORE_PER_MISSION}
-        
-        You are now a certified Data Guardian! 🛡️
-        """)
-        
-        # Save Result
-        save_result(st.session_state.user_name, st.session_state.score)
-        st.info("✅ Your result has been logged.")
-        
-        # PDF Download
-        pdf_bytes = create_pdf(st.session_state.user_name, st.session_state.score)
-        st.download_button(
-            label="📄 Download Certificate (PDF)",
-            data=pdf_bytes,
-            file_name="Fiducia_Certificate.pdf",
-            mime="application/pdf"
-        )
-        
-        # Certificate Mockup
-        st.markdown("---")
-        st.markdown(f"""
-        <div style="padding: 20px; border: 10px solid #FFD700; text-align: center; background-color: #ffffff; color: #333; font-family: 'Poppins', sans-serif;">
-            <h1>Certificate of Completion</h1>
-            <p>This certifies that</p>
-            <h2>{st.session_state.user_name}</h2>
-            <p>has demonstrated excellence in Data Protection & Security Awareness.</p>
-            <p>Date: {time.strftime("%d %B %Y")}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        if st.session_state.score >= passing_score:
+            st.balloons()
+            st.success(f"CONGRATULATIONS, {st.session_state.user_name}!")
+            st.markdown(f"""
+            You have completed the **Data Protection & Security Awareness Training**.
+            
+            **Final Score:** {st.session_state.score} / {max_possible_score}
+            
+            You are now a certified Data Guardian! 🛡️
+            """)
+            
+            # Save Result
+            save_result(st.session_state.user_name, st.session_state.score)
+            st.info("✅ Your result has been logged.")
+            
+            # PDF Download
+            pdf_bytes = create_pdf(st.session_state.user_name, st.session_state.score)
+            st.download_button(
+                label="📄 Download Certificate (PDF)",
+                data=pdf_bytes,
+                file_name="Fiducia_Certificate.pdf",
+                mime="application/pdf"
+            )
+            
+            # Certificate Mockup
+            st.markdown("---")
+            st.markdown(f"""
+            <div style="padding: 20px; border: 10px solid #FFD700; text-align: center; background-color: #ffffff; color: #333; font-family: 'Poppins', sans-serif;">
+                <h1>Certificate of Completion</h1>
+                <p>This certifies that</p>
+                <h2>{st.session_state.user_name}</h2>
+                <p>has demonstrated excellence in Data Protection & Security Awareness.</p>
+                <p>Date: {time.strftime("%d %B %Y")}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.error(f"Course Completed, but Score Insufficient.")
+            st.markdown(f"""
+            You have completed all missions, but your score of **{st.session_state.score} / {max_possible_score}** is below the 80% passing threshold ({int(passing_score)} points).
+            
+            Unfortunately, you cannot be awarded a certificate at this time.
+            
+            Please **Reset the Simulator** from the sidebar and try again to demonstrate your mastery of the material.
+            """)
+            
     else:
         st.warning(f"You have completed {len(st.session_state.completed_missions)} / {TOTAL_MISSIONS} missions.")
         st.write("Please complete all missions to unlock your certificate.")
