@@ -267,11 +267,19 @@ def save_result(username, email, score, duration_seconds):
         except Exception:
             pass # If empty or error, just overwrite/append normally
 
-    with open('training_log.csv', 'a', newline='') as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(['Timestamp', 'Username', 'Email', 'Score', 'Completed', 'DurationSeconds'])
-        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), username, email, score, len(st.session_state.completed_missions) == TOTAL_MISSIONS, duration_seconds])
+    new_data = pd.DataFrame([{
+        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Username': username,
+        'Email': email,
+        'Score': score,
+        'Completed': len(st.session_state.completed_missions) == TOTAL_MISSIONS,
+        'DurationSeconds': duration_seconds
+    }])
+
+    if not file_exists:
+        new_data.to_csv('training_log.csv', index=False)
+    else:
+        new_data.to_csv('training_log.csv', mode='a', header=False, index=False)
 
 def create_pdf(username, score):
     pdf = FPDF()
@@ -390,13 +398,11 @@ def dashboard():
     
     st.markdown('<p class="important-instruction">⚠️ Please enter your Name and Official Email (@myfiducia.com) to start the simulator.</p>', unsafe_allow_html=True)
     
-    st.markdown('<div class="input-container">', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         name_input = st.text_input("Full Name", value=st.session_state.user_name, placeholder="e.g. Jane Doe")
     with col2:
         email_input = st.text_input("Official Email", value=st.session_state.user_email, placeholder="e.g. jane.doe@myfiducia.com")
-    st.markdown('</div>', unsafe_allow_html=True)
     
     if st.button("Start Training"):
         # Validation
@@ -720,7 +726,12 @@ def certification():
             """)
             
             # Save Result (Log attempt even if failed)
-            save_result(st.session_state.user_name, st.session_state.score)
+            # Calculate Duration for failed attempt too
+            duration_seconds = 0
+            if st.session_state.start_time:
+                duration_seconds = (datetime.now() - st.session_state.start_time).total_seconds()
+            
+            save_result(st.session_state.user_name, st.session_state.user_email, st.session_state.score, duration_seconds)
             
             if not st.session_state.confirm_reset_cert:
                 if st.button("🔄 Reset Simulator & Try Again"):
@@ -750,6 +761,9 @@ def certification():
                     if 'DurationSeconds' not in df.columns:
                         df['DurationSeconds'] = 999999
                     
+                    # Ensure DurationSeconds is numeric
+                    df['DurationSeconds'] = pd.to_numeric(df['DurationSeconds'], errors='coerce')
+                    
                     # Sort by Score (desc) and DurationSeconds (asc)
                     df = df.sort_values(by=['Score', 'DurationSeconds'], ascending=[False, True])
                     
@@ -763,12 +777,15 @@ def certification():
                     
                     df['Time'] = df['DurationSeconds'].apply(format_duration)
                     
+                    # Rename Username to Name for display
+                    df = df.rename(columns={'Username': 'Name'})
+                    
                     # Reset index
                     df.reset_index(drop=True, inplace=True)
                     df.index += 1
                     
                     st.dataframe(
-                        df[['Username', 'Score', 'Time', 'Timestamp']], 
+                        df[['Name', 'Email', 'Time', 'Timestamp']], 
                         use_container_width=True,
                         height=300
                     )
@@ -791,6 +808,9 @@ def leaderboard():
                 if 'DurationSeconds' not in df.columns:
                     df['DurationSeconds'] = 999999
                 
+                # Ensure DurationSeconds is numeric
+                df['DurationSeconds'] = pd.to_numeric(df['DurationSeconds'], errors='coerce')
+                
                 # Sort by Score (desc) and DurationSeconds (asc)
                 df = df.sort_values(by=['Score', 'DurationSeconds'], ascending=[False, True])
                 
@@ -804,12 +824,15 @@ def leaderboard():
                 
                 df['Time'] = df['DurationSeconds'].apply(format_duration)
                 
+                # Rename Username to Name for display
+                df = df.rename(columns={'Username': 'Name'})
+                
                 # Reset index to start at 1
                 df.reset_index(drop=True, inplace=True)
                 df.index += 1
                 
                 st.dataframe(
-                    df[['Username', 'Score', 'Time', 'Timestamp']], 
+                    df[['Name', 'Email', 'Time', 'Timestamp']], 
                     use_container_width=True,
                     height=500
                 )
