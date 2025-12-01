@@ -7,6 +7,7 @@ from datetime import datetime
 from fpdf import FPDF
 import base64
 import pandas as pd
+from streamlit_gsheets import GSheetsConnection
 
 # Page Configuration
 st.set_page_config(
@@ -248,25 +249,9 @@ def show_feedback(is_correct, explanation, mission_id, points=MAX_SCORE_PER_MISS
         mark_complete(mission_id, 0, message=msg)
 
 def save_result(username, email, score, duration_seconds):
-    file_exists = os.path.isfile('training_log.csv')
+    conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # Check for schema migration if file exists
-    if file_exists:
-        try:
-            df = pd.read_csv('training_log.csv')
-            changed = False
-            if 'DurationSeconds' not in df.columns:
-                df['DurationSeconds'] = 999999 # Default for old records
-                changed = True
-            if 'Email' not in df.columns:
-                df['Email'] = 'N/A'
-                changed = True
-            
-            if changed:
-                df.to_csv('training_log.csv', index=False)
-        except Exception:
-            pass # If empty or error, just overwrite/append normally
-
+    # Create new data row
     new_data = pd.DataFrame([{
         'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'Username': username,
@@ -275,11 +260,30 @@ def save_result(username, email, score, duration_seconds):
         'Completed': len(st.session_state.completed_missions) == TOTAL_MISSIONS,
         'DurationSeconds': duration_seconds
     }])
+    
+    try:
+        # Read existing data
+        existing_data = conn.read(ttl=0)
+        
+        # If empty or just created, it might be empty dataframe
+        if existing_data.empty:
+            updated_data = new_data
+        else:
+            # Ensure columns match (handling schema evolution if needed)
+            if 'DurationSeconds' not in existing_data.columns:
+                existing_data['DurationSeconds'] = 999999
+            if 'Email' not in existing_data.columns:
+                existing_data['Email'] = 'N/A'
+                
+            updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+            
+        # Update the sheet
+        conn.update(data=updated_data)
+        
+    except Exception as e:
+        st.error(f"Error saving to Google Sheets: {e}")
+        # Fallback or retry logic could go here
 
-    if not file_exists:
-        new_data.to_csv('training_log.csv', index=False)
-    else:
-        new_data.to_csv('training_log.csv', mode='a', header=False, index=False)
 
 def create_pdf(username, score):
     pdf = FPDF()
@@ -918,58 +922,12 @@ def certification():
         # --- LEADERBOARD (Always Visible when done) ---
         st.markdown("---")
         st.subheader("🏆 Hall of Fame")
-        if os.path.isfile('training_log.csv'):
-            try:
-                df = pd.read_csv('training_log.csv')
-                if not df.empty:
-                    # Ensure DurationSeconds exists (for backward compatibility if not saved yet)
-                    if 'DurationSeconds' not in df.columns:
-                        df['DurationSeconds'] = 999999
-                    
-                    # Ensure DurationSeconds is numeric
-                    df['DurationSeconds'] = pd.to_numeric(df['DurationSeconds'], errors='coerce')
-                    
-                    # Sort by Score (desc) and DurationSeconds (asc)
-                    df = df.sort_values(by=['Score', 'DurationSeconds'], ascending=[False, True])
-                    
-                    # Format Duration
-                    def format_duration(seconds):
-                        if pd.isna(seconds) or seconds == 999999:
-                            return "N/A"
-                        m = int(seconds // 60)
-                        s = int(seconds % 60)
-                        return f"{m}m {s}s"
-                    
-                    df['Time'] = df['DurationSeconds'].apply(format_duration)
-                    
-                    # Rename Username to Name for display
-                    df = df.rename(columns={'Username': 'Name'})
-                    
-                    # Reset index
-                    df.reset_index(drop=True, inplace=True)
-                    df.index += 1
-                    
-                    st.dataframe(
-                        df[['Name', 'Email', 'Time', 'Timestamp']], 
-                        use_container_width=True,
-                        height=300
-                    )
-            except Exception as e:
-                st.error(f"Could not load leaderboard: {e}")
-
-    else:
-        st.warning(f"You have completed {len(st.session_state.completed_missions)} / {TOTAL_MISSIONS} missions.")
-        st.write("Please complete all missions to unlock your certificate.")
-
-def leaderboard():
-    st.title("🏆 Hall of Fame")
-    st.markdown("The top performing Data Guardians.")
-    
-    if os.path.isfile('training_log.csv'):
         try:
-            df = pd.read_csv('training_log.csv')
+            conn = st.connection("gsheets", type=GSheetsConnection)
+            df = conn.read(ttl=0)
+            
             if not df.empty:
-                # Ensure DurationSeconds exists
+                # Ensure DurationSeconds exists (for backward compatibility if not saved yet)
                 if 'DurationSeconds' not in df.columns:
                     df['DurationSeconds'] = 999999
                 
@@ -992,21 +950,67 @@ def leaderboard():
                 # Rename Username to Name for display
                 df = df.rename(columns={'Username': 'Name'})
                 
-                # Reset index to start at 1
+                # Reset index
                 df.reset_index(drop=True, inplace=True)
                 df.index += 1
                 
                 st.dataframe(
                     df[['Name', 'Email', 'Time', 'Timestamp']], 
                     use_container_width=True,
-                    height=500
+                    height=300
                 )
-            else:
-                st.info("No records found yet. Be the first!")
         except Exception as e:
-            st.error(f"Error loading leaderboard: {e}")
+            st.error(f"Could not load leaderboard: {e}")
+
     else:
-        st.info("No records found yet.")
+        st.warning(f"You have completed {len(st.session_state.completed_missions)} / {TOTAL_MISSIONS} missions.")
+        st.write("Please complete all missions to unlock your certificate.")
+
+def leaderboard():
+    st.title("🏆 Hall of Fame")
+    st.markdown("The top performing Data Guardians.")
+    
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df = conn.read(ttl=0)
+        
+        if not df.empty:
+            # Ensure DurationSeconds exists
+            if 'DurationSeconds' not in df.columns:
+                df['DurationSeconds'] = 999999
+            
+            # Ensure DurationSeconds is numeric
+            df['DurationSeconds'] = pd.to_numeric(df['DurationSeconds'], errors='coerce')
+            
+            # Sort by Score (desc) and DurationSeconds (asc)
+            df = df.sort_values(by=['Score', 'DurationSeconds'], ascending=[False, True])
+            
+            # Format Duration
+            def format_duration(seconds):
+                if pd.isna(seconds) or seconds == 999999:
+                    return "N/A"
+                m = int(seconds // 60)
+                s = int(seconds % 60)
+                return f"{m}m {s}s"
+            
+            df['Time'] = df['DurationSeconds'].apply(format_duration)
+            
+            # Rename Username to Name for display
+            df = df.rename(columns={'Username': 'Name'})
+            
+            # Reset index to start at 1
+            df.reset_index(drop=True, inplace=True)
+            df.index += 1
+            
+            st.dataframe(
+                df[['Name', 'Email', 'Time', 'Timestamp']], 
+                use_container_width=True,
+                height=500
+            )
+        else:
+            st.info("No records found yet. Be the first!")
+    except Exception as e:
+        st.error(f"Error loading leaderboard: {e}")
 
 # --- Main Routing ---
 # Get current page from state
